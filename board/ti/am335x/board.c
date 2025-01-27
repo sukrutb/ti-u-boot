@@ -44,6 +44,9 @@
 #include <power/tps65910.h>
 #include <env_internal.h>
 #include <watchdog.h>
+#include <fdt_simplefb.h>
+#include <fdt_support.h>
+#include <video.h>
 #include "../common/board_detect.h"
 #include "../common/cape_detect.h"
 #include "board.h"
@@ -628,7 +631,19 @@ int ft_board_setup(void *fdt, struct bd_info *bd)
 	char alias[16];
 	u32 phy_id[2];
 	int phy_addr;
-	int i, ret;
+	int i, ret = -1;
+
+	if (IS_ENABLED(CONFIG_FDT_SIMPLEFB))
+		ret = fdt_simplefb_enable_and_mem_rsv(fdt);
+
+	/*
+	 * If simplefb is not enabled and video is active, then at least reserve
+	 * the framebuffer region to preserve the splash screen while OS is booting
+	 */
+	if (IS_ENABLED(CONFIG_VIDEO) && IS_ENABLED(CONFIG_OF_LIBFDT)) {
+		if (ret && video_is_active())
+			return fdt_add_fb_mem_rsv(fdt);
+	}
 
 	/* phy address fixup needed only on beagle bone family */
 	if (!board_is_beaglebonex())
